@@ -1,6 +1,6 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, DataSource, LessThan, MoreThan } from 'typeorm';
+import { Repository, DataSource, LessThan, MoreThan, Between } from 'typeorm';
 import { 
   Event, 
   EventType, 
@@ -388,12 +388,12 @@ export class EventStoreService extends EventEmitter implements OnModuleInit {
       whereConditions.aggregateType = options.aggregateType;
     }
     
-    if (options.from) {
+    if (options.from && options.to) {
+      whereConditions.timestamp = Between(options.from, options.to);
+    } else if (options.from) {
       whereConditions.timestamp = MoreThan(options.from);
-    }
-    
-    if (options.to) {
-      whereConditions.timestamp = { ...whereConditions.timestamp, LessThan(options.to) };
+    } else if (options.to) {
+      whereConditions.timestamp = LessThan(options.to);
     }
 
     const [count, avgVersion] = await Promise.all([

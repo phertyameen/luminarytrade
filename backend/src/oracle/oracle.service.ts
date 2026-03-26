@@ -23,6 +23,8 @@ export interface FeedPrice {
   pair: string;
   price: string;
   decimals: number;
+  timestamp?: Date;
+  snapshotId?: string;
 }
 
 export interface UpdateSnapshotResult {
@@ -218,7 +220,25 @@ export class OracleService {
       price: l.price,
       decimals: l.decimals,
       timestamp: l.timestamp,
+      snapshotId: l.snapshotId,
     }));
+  }
+
+  async getSnapshotAsOracle(id: string): Promise<FeedPrice & { id: string } | null> {
+    const snapshot = await this.snapshotRepo.findOne({ where: { id } });
+    if (!snapshot || !Array.isArray(snapshot.feeds) || snapshot.feeds.length === 0) {
+      return null;
+    }
+
+    const first = snapshot.feeds[0];
+    return {
+      id: snapshot.id,
+      pair: first.pair,
+      price: first.price,
+      decimals: first.decimals,
+      timestamp: snapshot.timestamp,
+      snapshotId: snapshot.id,
+    };
   }
 
   /**

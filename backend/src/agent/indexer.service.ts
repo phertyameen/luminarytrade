@@ -56,7 +56,8 @@ export class IndexerService {
 
     const [data, total] = await queryBuilder.getManyAndCount();
 
-    const { page, limit } = searchDto;
+    const page = searchDto.page || 1;
+    const limit = searchDto.limit || 10;
 
     return {
       data,
@@ -92,6 +93,16 @@ export class IndexerService {
   ): Promise<Agent> {
     const agent = await this.findOne(id);
     agent.performance_metrics = { ...agent.performance_metrics, ...metrics };
+    return await this.agentRepository.save(agent);
+  }
+
+  @CacheInvalidate({
+    rule: 'agent:update',
+    keys: (id: string) => [`agent:${id}`],
+  })
+  async update(id: string, updates: Partial<Agent>): Promise<Agent> {
+    const agent = await this.findOne(id);
+    Object.assign(agent, updates);
     return await this.agentRepository.save(agent);
   }
 

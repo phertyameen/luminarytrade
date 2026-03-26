@@ -42,6 +42,63 @@ npm run start:dev
 
 ## API Endpoints
 
+### GraphQL API
+
+GraphQL is available alongside REST at:
+
+```bash
+POST /graphql
+```
+
+GraphQL explorer is enabled in non-production environments.
+
+Example query:
+
+```graphql
+query AgentsAndOracles {
+  agents(limit: 5, offset: 0) {
+    id
+    name
+    evolution_level
+  }
+  oracles(filter: { limit: 3 }) {
+    pair
+    price
+    timestamp
+  }
+}
+```
+
+Example mutation:
+
+```graphql
+mutation CreateAgent {
+  createAgent(
+    input: {
+      name: "risk-engine-v2"
+      description: "GraphQL-created agent"
+      capabilities: ["risk", "scoring"]
+      evolution_level: 2
+    }
+  ) {
+    id
+    name
+  }
+}
+```
+
+Example subscription:
+
+```graphql
+subscription AgentUpdated {
+  agentUpdated {
+    id
+    name
+    updated_at
+  }
+}
+```
+
 ### Create Submission
 ```bash
 POST /submissions

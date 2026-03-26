@@ -326,4 +326,10 @@ export class AuditLogService {
       take: limit,
     });
   }
+
+  async getById(id: string): Promise<AuditLogEntity | null> {
+    return this.auditLogRepository.findOne({
+      where: { id, deletedAt: IsNull() },
+    });
+  }
 }

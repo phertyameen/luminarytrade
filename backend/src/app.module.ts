@@ -25,6 +25,7 @@ import { MiddlewarePipelineModule } from './middleware-pipeline/middleware-pipel
 import { DecoratorCompositionModule } from './decorator-composition/decorator-composition.module';
 import { HealthModule } from './health/health.module';
 import { EventsModule } from './events/events.module';
+import { GraphqlApiModule } from './graphql/graphql.module';
 
 @Module({
   imports: [
@@ -63,6 +64,7 @@ import { EventsModule } from './events/events.module';
     MaterializedViewsModule,
     MiddlewarePipelineModule,
     DecoratorCompositionModule,
+    GraphqlApiModule,
   ],
   providers: [AppConfigService],
   exports: [AppConfigService],

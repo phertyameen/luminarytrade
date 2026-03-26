@@ -1,0 +1,171 @@
+scalar JSON
+scalar DateTime
+
+enum SubmissionStatus {
+  pending
+  processing
+  completed
+  failed
+  retrying
+}
+
+enum AuditStatus {
+  SUCCESS
+  FAILURE
+  PARTIAL
+}
+
+type Agent {
+  id: ID!
+  name: String!
+  description: String
+  metadata: JSON
+  capabilities: [String!]!
+  evolution_level: Int!
+  performance_metrics: JSON
+  is_active: Boolean!
+  created_at: DateTime!
+  updated_at: DateTime!
+}
+
+type Oracle {
+  id: ID!
+  pair: String!
+  price: String!
+  decimals: Int!
+  timestamp: DateTime!
+  snapshotId: ID!
+}
+
+type Submission {
+  id: ID!
+  idempotencyKey: String!
+  payload: JSON!
+  status: SubmissionStatus!
+  transactionHash: String
+  retryCount: Int!
+  maxRetries: Int!
+  errorMessage: String
+  completedAt: DateTime
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+type Transaction {
+  id: ID!
+  submissionId: ID!
+  hash: String
+  status: SubmissionStatus!
+  createdAt: DateTime!
+}
+
+type AuditLog {
+  id: ID!
+  userId: String
+  wallet: String
+  eventType: String!
+  entityType: String
+  entityId: String
+  oldValues: JSON
+  newValues: JSON
+  metadata: JSON!
+  description: String
+  ipAddress: String
+  userAgent: String
+  requestId: String
+  status: AuditStatus!
+  errorDetails: JSON
+  timestamp: DateTime!
+}
+
+type AgentStats {
+  total: Int!
+  active: Int!
+  avgEvolutionLevel: Float!
+}
+
+type Query {
+  agent(id: ID!): Agent
+  agents(limit: Int, offset: Int, filter: AgentFilter): [Agent!]!
+  oracle(id: ID!): Oracle
+  oracles(filter: OracleFilter): [Oracle!]!
+  submission(id: ID!): Submission
+  submissions(limit: Int, offset: Int, status: SubmissionStatus): [Submission!]!
+  transaction(id: ID!): Transaction
+  transactions(limit: Int, offset: Int, status: SubmissionStatus): [Transaction!]!
+  auditLog(id: ID!): AuditLog
+  auditLogs(filter: AuditLogFilter): [AuditLog!]!
+  searchAgents(term: String!, limit: Int, offset: Int): [Agent!]!
+  agentStats: AgentStats!
+}
+
+type Mutation {
+  createAgent(input: CreateAgentInput!): Agent!
+  updateAgent(id: ID!, input: UpdateAgentInput!): Agent!
+  createSubmission(input: CreateSubmissionInput!): Submission!
+  updateOracleData(input: UpdateOracleInput!): Oracle!
+}
+
+type Subscription {
+  agentUpdated: Agent!
+  oracleDataUpdated: Oracle!
+}
+
+input AgentFilter {
+  name: String
+  capabilities: [String!]
+  evolution_level_min: Int
+  evolution_level_max: Int
+}
+
+input OracleFilter {
+  pair: String
+  minTimestamp: DateTime
+  maxTimestamp: DateTime
+  limit: Int
+}
+
+input AuditLogFilter {
+  wallet: String
+  eventType: String
+  startDate: DateTime
+  endDate: DateTime
+  limit: Int
+  offset: Int
+}
+
+input CreateAgentInput {
+  name: String!
+  description: String
+  metadata: JSON
+  capabilities: [String!]
+  evolution_level: Int
+}
+
+input UpdateAgentInput {
+  name: String
+  description: String
+  metadata: JSON
+  capabilities: [String!]
+  evolution_level: Int
+  performance_metrics: JSON
+  is_active: Boolean
+}
+
+input OracleFeedInput {
+  pair: String!
+  price: String!
+  decimals: Int!
+}
+
+input UpdateOracleInput {
+  timestamp: Float!
+  feeds: [OracleFeedInput!]!
+  signature: String!
+  signer: String
+}
+
+input CreateSubmissionInput {
+  idempotencyKey: String!
+  payload: JSON!
+}
