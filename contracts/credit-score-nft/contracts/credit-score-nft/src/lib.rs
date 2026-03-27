@@ -8,6 +8,8 @@ pub struct CreditScoreNFT {
     pub metadata_cid: String,
     pub token_id: u64,
     pub mint_timestamp: u64,
+    pub is_revoked: bool,
+    pub revocation_note: String,
 }
 
 #[contracttype]
@@ -98,6 +100,8 @@ impl CreditScoreNFTContract {
             metadata_cid: metadata_cid.clone(),
             token_id,
             mint_timestamp: env.ledger().timestamp(),
+            is_revoked: false,
+            revocation_note: String::from_str(&env, ""),
         };
 
         // Store NFT
@@ -125,57 +129,35 @@ impl CreditScoreNFTContract {
         token_id
     }
 
-    /// Transfer NFT to a new owner
-    pub fn transfer(env: Env, from: Address, to: Address, token_id: u64) {
-        from.require_auth();
+    /// Transfer NFT to a new owner (DISABLED: Credit Score NFTs are Soulbound)
+    pub fn transfer(_env: Env, _from: Address, _to: Address, _token_id: u64) {
+        panic!("Credit Score NFTs are non-transferable (soulbound)");
+    }
 
-        // Get NFT
+    /// Revoke an NFT
+    pub fn revoke(env: Env, admin: Address, token_id: u64, note: String) {
+        admin.require_auth();
+        let stored_admin: Address = env.storage().instance().get(&DataKey::Admin).unwrap();
+        if admin != stored_admin {
+            panic!("Unauthorized: only admin can revoke");
+        }
+
         let mut nft: CreditScoreNFT = env
             .storage()
             .persistent()
             .get(&DataKey::NFT(token_id))
             .expect("NFT not found");
 
-        // Verify ownership
-        if nft.owner != from {
-            panic!("Unauthorized: caller is not the owner");
-        }
+        nft.is_revoked = true;
+        nft.revocation_note = note.clone();
 
-        // Remove token from previous owner's list
-        let mut from_tokens: Vec<u64> = env
-            .storage()
-            .persistent()
-            .get(&DataKey::OwnerTokens(from.clone()))
-            .unwrap_or(Vec::new(&env));
-
-        if let Some(index) = from_tokens.iter().position(|id| id == token_id) {
-            from_tokens.remove(index as u32);
-            env.storage()
-                .persistent()
-                .set(&DataKey::OwnerTokens(from.clone()), &from_tokens);
-        }
-
-        // Add token to new owner's list
-        let mut to_tokens: Vec<u64> = env
-            .storage()
-            .persistent()
-            .get(&DataKey::OwnerTokens(to.clone()))
-            .unwrap_or(Vec::new(&env));
-        to_tokens.push_back(token_id);
-        env.storage()
-            .persistent()
-            .set(&DataKey::OwnerTokens(to.clone()), &to_tokens);
-
-        // Update NFT owner
-        nft.owner = to.clone();
         env.storage()
             .persistent()
             .set(&DataKey::NFT(token_id), &nft);
 
-        // Emit transfer event
         env.events().publish(
-            (symbol_short!("transfer"), symbol_short!("nft")),
-            (from, to, token_id),
+            (symbol_short!("revoke"), symbol_short!("nft")),
+            (token_id, note),
         );
     }
 
@@ -277,10 +259,14 @@ mod test {
         assert_eq!(client.get_owner(&token_id), recipient);
         assert_eq!(client.get_metadata_cid(&token_id), metadata);
         assert_eq!(client.total_supply(), 1);
+        
+        let nft = client.get_nft(&token_id);
+        assert!(!nft.is_revoked);
     }
 
     #[test]
-    fn test_transfer_nft() {
+    #[should_panic(expected = "Credit Score NFTs are non-transferable (soulbound)")]
+    fn test_transfer_nft_fails() {
         let env = Env::default();
         env.mock_all_auths();
 
@@ -299,16 +285,6 @@ mod test {
         let token_id = client.mint(&minter, &owner, &metadata);
 
         client.transfer(&owner, &recipient, &token_id);
-
-        assert_eq!(client.get_owner(&token_id), recipient);
-
-        // Verify token lists updated
-        let owner_tokens = client.get_tokens_by_owner(&owner);
-        assert_eq!(owner_tokens.len(), 0);
-
-        let recipient_tokens = client.get_tokens_by_owner(&recipient);
-        assert_eq!(recipient_tokens.len(), 1);
-        assert_eq!(recipient_tokens.get(0).unwrap(), token_id);
     }
 
     #[test]
@@ -394,7 +370,27 @@ mod test {
         assert_eq!(token_id2, 2);
         assert_eq!(client.total_supply(), 2);
 
-        let tokens = client.get_tokens_by_owner(&recipient);
-        assert_eq!(tokens.len(), 2);
+    #[test]
+    fn test_revoke_nft() {
+        let env = Env::default();
+        env.mock_all_auths();
+
+        let contract_id = env.register_contract(None, CreditScoreNFTContract);
+        let client = CreditScoreNFTContractClient::new(&env, &contract_id);
+
+        let admin = Address::generate(&env);
+        let recipient = Address::generate(&env);
+
+        client.initialize(&admin);
+
+        let metadata = String::from_str(&env, "QmScore...");
+        let token_id = client.mint(&admin, &recipient, &metadata);
+
+        let note = String::from_str(&env, "Fraud detected");
+        client.revoke(&admin, &token_id, &note);
+
+        let nft = client.get_nft(&token_id);
+        assert!(nft.is_revoked);
+        assert_eq!(nft.revocation_note, note);
     }
 }
